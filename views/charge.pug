@@ -1,0 +1,9 @@
+extends layout
+
+block content
+  .timeline
+    form#charge-form(action='/charge' method='post')
+      .input-group
+        label(for='money') 충전 금액
+        input#money(name='money' required autofocus)
+      button#charge-btn.btn(type='submit') 충전하기

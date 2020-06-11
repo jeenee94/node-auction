@@ -38,6 +38,10 @@ router.get('/good', isLoggedIn, (req, res) => {
   res.render('good', { title: '상품 등록 - NodeAuction' });
 });
 
+router.get('/charge', isLoggedIn, (req, res) => {
+  res.render('charge', { title: '충전하기 - NodeAuction' });
+});
+
 fs.readdir('uploads', (error) => {
   if (error) {
     console.error('uploads 폴더가 없어 uploads 폴더를 생성합니다.');
@@ -65,6 +69,19 @@ router.post('/good', isLoggedIn, upload.single('img'), async (req, res, next) =>
       img: req.file.filename,
       price,
     });
+    res.redirect('/');
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+});
+router.post('/charge', isLoggedIn, async (req, res, next) => {
+  try {
+    const user = await User.findOne({ where: { id: req.user.id } });
+    await user.update({
+      money: parseInt(user.money, 10) + parseInt(req.body.money, 10),
+    });
+    // await User.update({ money: user.money + req.body.money }, { where: { id: req.user.id } });
     res.redirect('/');
   } catch (error) {
     console.error(error);

@@ -4,7 +4,7 @@ module.exports = (sequelize, DataTypes) =>
     {
       email: {
         type: DataTypes.STRING(40),
-        allowNull: false,
+        allowNull: true,
         unique: true,
       },
       nick: {
@@ -13,12 +13,21 @@ module.exports = (sequelize, DataTypes) =>
       },
       password: {
         type: DataTypes.STRING(100),
-        allowNull: false,
+        allowNull: true,
       },
       money: {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0,
+      },
+      provider: {
+        type: DataTypes.STRING(10),
+        allowNull: false,
+        defaultValue: 'local',
+      },
+      snsId: {
+        type: DataTypes.STRING(30),
+        allowNull: true,
       },
     },
     {
