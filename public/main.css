@@ -98,6 +98,12 @@ textarea {
   border: 1px solid black;
   border-collapse: collapse;
 }
+#good-list th:nth-child(4) {
+  width: 90px;
+}
+td.time {
+  text-align: center;
+}
 #good-list img {
   max-height: 45px;
   vertical-align: top;

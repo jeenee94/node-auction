@@ -81,7 +81,6 @@ router.post('/charge', isLoggedIn, async (req, res, next) => {
     await user.update({
       money: parseInt(user.money, 10) + parseInt(req.body.money, 10),
     });
-    // await User.update({ money: user.money + req.body.money }, { where: { id: req.user.id } });
     res.redirect('/');
   } catch (error) {
     console.error(error);
