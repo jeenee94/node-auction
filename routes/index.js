@@ -2,8 +2,10 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const schedule = require('node-schedule');
+const { Op } = require('sequelize');
 
-const { Good, Auction, User } = require('../models');
+const { Good, Auction, User, sequelize } = require('../models');
 const { isLoggedIn, isNotLoggedIn } = require('./middlewares');
 
 const router = express.Router();
@@ -12,13 +14,27 @@ router.use((req, res, next) => {
   res.locals.user = req.user;
   next();
 });
-
+/*
+Good.findOne({
+        where: { id: req.params.id },
+        include: {
+          model: User,
+          as: 'owner',
+        },
+      }),
+*/
 router.get('/', async (req, res, next) => {
   try {
     const goods = await Good.findAll({ where: { soldId: null } });
+    const solds = await Good.findAll({
+      where: { soldId: { [Op.ne]: null } },
+      include: [{ model: Auction }, { model: User, as: 'sold' }],
+      order: [[{ model: Auction }, 'bid', 'DESC']],
+    });
     res.render('main', {
       title: 'NodeAuction',
       goods,
+      solds,
       loginError: req.flash('loginError'),
     });
   } catch (error) {
@@ -42,12 +58,26 @@ router.get('/charge', isLoggedIn, (req, res) => {
   res.render('charge', { title: '충전하기 - NodeAuction' });
 });
 
+router.post('/charge', isLoggedIn, async (req, res, next) => {
+  try {
+    const user = await User.findOne({ where: { id: req.user.id } });
+    await user.update({
+      money: parseInt(user.money, 10) + parseInt(req.body.money, 10),
+    });
+    res.redirect('/');
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+});
+
 fs.readdir('uploads', (error) => {
   if (error) {
     console.error('uploads 폴더가 없어 uploads 폴더를 생성합니다.');
     fs.mkdirSync('uploads');
   }
 });
+
 const upload = multer({
   storage: multer.diskStorage({
     destination(req, file, cb) {
@@ -63,11 +93,24 @@ const upload = multer({
 router.post('/good', isLoggedIn, upload.single('img'), async (req, res, next) => {
   try {
     const { name, price } = req.body;
-    await Good.create({
+    const good = await Good.create({
       ownerId: req.user.id,
       name,
       img: req.file.filename,
       price,
+    });
+    const end = new Date();
+    end.setMinutes(end.getMinutes() + 3);
+    schedule.scheduleJob(end, async () => {
+      const success = await Auction.findOne({
+        where: { goodId: good.id },
+        order: [['bid', 'DESC']],
+      });
+      await Good.update({ soldId: success.userId }, { where: { id: good.id } });
+      await User.update(
+        { money: sequelize.literal(`money - ${success.bid}`) },
+        { where: { id: success.userId } }
+      );
     });
     res.redirect('/');
   } catch (error) {
@@ -75,16 +118,70 @@ router.post('/good', isLoggedIn, upload.single('img'), async (req, res, next) =>
     next(error);
   }
 });
-router.post('/charge', isLoggedIn, async (req, res, next) => {
+
+router.get('/good/:id', isLoggedIn, async (req, res, next) => {
   try {
-    const user = await User.findOne({ where: { id: req.user.id } });
-    await user.update({
-      money: parseInt(user.money, 10) + parseInt(req.body.money, 10),
+    const [good, auction] = await Promise.all([
+      Good.findOne({
+        where: { id: req.params.id },
+        include: {
+          model: User,
+          as: 'owner',
+        },
+      }),
+      Auction.findAll({
+        where: { goodId: req.params.id },
+        include: { model: User },
+        order: [['bid', 'ASC']],
+      }),
+    ]);
+    res.render('auction', {
+      title: `${good.name} - NodeAuction`,
+      good,
+      auction,
+      auctionError: req.flash('auctionError'),
     });
-    res.redirect('/');
   } catch (error) {
     console.error(error);
     next(error);
+  }
+});
+
+router.post('/good/:id/bid', isLoggedIn, async (req, res, next) => {
+  try {
+    const { bid, msg } = req.body;
+    const good = await Good.findOne({
+      where: { id: req.params.id },
+      include: { model: Auction },
+      order: [[{ model: Auction }, 'bid', 'DESC']],
+    });
+    if (good.price > bid) {
+      // 시작 가격보다 낮게 입찰하면
+      return res.status(403).send('시작 가격보다 높게 입찰해야 합니다.');
+    }
+    // 경매 종료 시간이 지났으면
+    if (new Date(good.createdAt).valueOf() + 24 * 60 * 60 * 1000 < new Date()) {
+      return res.status(403).send('경매가 이미 종료되었습니다');
+    }
+    // 직전 입찰가와 현재 입찰가 비교
+    if (good.auctions[0] && good.auctions[0].bid >= bid) {
+      return res.status(403).send('이전 입찰가보다 높아야 합니다');
+    }
+    const result = await Auction.create({
+      bid,
+      msg,
+      userId: req.user.id,
+      goodId: req.params.id,
+    });
+    req.app.get('io').to(req.params.id).emit('bid', {
+      bid: result.bid,
+      msg: result.msg,
+      nick: req.user.nick,
+    });
+    return res.send('ok');
+  } catch (error) {
+    console.error(error);
+    return next(error);
   }
 });
 

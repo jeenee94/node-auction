@@ -17,6 +17,19 @@ block content
           td= good.price
           td.time(data-start=good.createdAt) waiting...
           td: a.enter.btn(href='/good/' + good.id) 입장
+    h2 경매 낙찰 목록
+    table#good-list
+      tr
+        th 상품명
+        th 사진
+        th 낙찰가
+        th 낙찰자 닉네임
+      for sold in solds
+        tr
+          td= sold.name
+          td: img(src='/img/' + sold.img)
+          td= sold.auctions[0].bid
+          td= sold.sold.nick
   script(src='https://cdnjs.cloudflare.com/ajax/libs/event-source-polyfill/0.0.9/eventsource.min.js')
   script.
     var es = new EventSource('/sse');
@@ -24,7 +37,7 @@ block content
       document.querySelectorAll('.time').forEach(function(td) {
         var end = new Date(td.dataset.start);
         var server = new Date(parseInt(e.data, 10));
-        end.setDate(end.getDate() + 1);
+        end.setMinutes(end.getMinutes() + 3); 
         if (server >= end) {
           return td.textContent = '00:00:00';
         } else {
