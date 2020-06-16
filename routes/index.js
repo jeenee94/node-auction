@@ -14,18 +14,14 @@ router.use((req, res, next) => {
   res.locals.user = req.user;
   next();
 });
-/*
-Good.findOne({
-        where: { id: req.params.id },
-        include: {
-          model: User,
-          as: 'owner',
-        },
-      }),
-*/
+
 router.get('/', async (req, res, next) => {
   try {
-    const goods = await Good.findAll({ where: { soldId: null } });
+    const goods = await Good.findAll({
+      where: { soldId: null },
+      include: [{ model: Auction }],
+      order: [[{ model: Auction }, 'bid', 'DESC']],
+    });
     const solds = await Good.findAll({
       where: { soldId: { [Op.ne]: null } },
       include: [{ model: Auction }, { model: User, as: 'sold' }],
@@ -106,11 +102,14 @@ router.post('/good', isLoggedIn, upload.single('img'), async (req, res, next) =>
         where: { goodId: good.id },
         order: [['bid', 'DESC']],
       });
-      await Good.update({ soldId: success.userId }, { where: { id: good.id } });
-      await User.update(
-        { money: sequelize.literal(`money - ${success.bid}`) },
-        { where: { id: success.userId } }
-      );
+      if (!success) await good.destroy();
+      else {
+        await Good.update({ soldId: success.userId }, { where: { id: good.id } });
+        await User.update(
+          { money: sequelize.literal(`money - ${success.bid}`) },
+          { where: { id: success.userId } }
+        );
+      }
     });
     res.redirect('/');
   } catch (error) {
