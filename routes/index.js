@@ -88,7 +88,7 @@ const upload = multer({
 });
 router.post('/good', isLoggedIn, upload.single('img'), async (req, res, next) => {
   try {
-    const { name, price } = req.body;
+    const { name, price, time } = req.body;
     const good = await Good.create({
       ownerId: req.user.id,
       name,
@@ -165,6 +165,9 @@ router.post('/good/:id/bid', isLoggedIn, async (req, res, next) => {
     // 직전 입찰가와 현재 입찰가 비교
     if (good.auctions[0] && good.auctions[0].bid >= bid) {
       return res.status(403).send('이전 입찰가보다 높아야 합니다');
+    }
+    if (good.ownerId === req.user.id) {
+      return res.status(403).send('경매 등록자는 입찰 할 수 없습니다.');
     }
     const result = await Auction.create({
       bid,

@@ -121,6 +121,9 @@ td {
   padding: 10px;
   text-align: center;
 }
+#time {
+  margin-right: 275px;
+}
 footer {
   text-align: center;
 }
