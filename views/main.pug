@@ -10,6 +10,7 @@ block content
         th 시작 가격
         th 현재 가격
         th 종료 시간
+        th 등록자 닉네임
         th 입장
       for good in goods
         tr
@@ -20,7 +21,8 @@ block content
             td= good.auctions[0].bid
           else
             td.bid None
-          td.time(data-start=good.createdAt) waiting...
+          td.time(data-start=good.createdAt data-time=good.time) waiting...
+          td= good.owner.nick
           td: a.enter.btn(href='/good/' + good.id) 입장
     h2 경매 낙찰 목록
     table#good-list
@@ -42,7 +44,7 @@ block content
       document.querySelectorAll('.time').forEach(function(td) {
         var end = new Date(td.dataset.start);
         var server = new Date(parseInt(e.data, 10));
-        end.setMinutes(end.getMinutes() + 3); 
+        end.setHours(end.getHours() + parseInt(td.dataset.time, 10)); 
         if (server >= end) {
           return td.textContent = '종료';
         } else {
@@ -50,7 +52,7 @@ block content
           var seconds = ('0' + Math.floor((t / 1000) % 60)).slice(-2);
           var minutes = ('0' + Math.floor((t / 1000 / 60) % 60)).slice(-2);
           var hours = ('0' + Math.floor((t / (1000 * 60 * 60)) % 24)).slice(-2);
-          if (minutes === "00") {
+          if (hours === "00") {
             td.style.color = '#ff0000';
           }
           return td.textContent = hours + ':' + minutes + ':' + seconds ;

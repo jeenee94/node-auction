@@ -19,7 +19,7 @@ router.get('/', async (req, res, next) => {
   try {
     const goods = await Good.findAll({
       where: { soldId: null },
-      include: [{ model: Auction }],
+      include: [{ model: Auction }, { model: User, as: 'owner' }],
       order: [[{ model: Auction }, 'bid', 'DESC']],
     });
     const solds = await Good.findAll({
@@ -94,16 +94,18 @@ router.post('/good', isLoggedIn, upload.single('img'), async (req, res, next) =>
       name,
       img: req.file.filename,
       price,
+      time: parseInt(time.slice(0, -2), 10),
     });
     const end = new Date();
-    end.setMinutes(end.getMinutes() + 3);
+    end.setHours(end.getHours() + good.time);
     schedule.scheduleJob(end, async () => {
       const success = await Auction.findOne({
         where: { goodId: good.id },
         order: [['bid', 'DESC']],
       });
-      if (!success) await good.destroy();
-      else {
+      if (!success) {
+        await good.destroy();
+      } else {
         await Good.update({ soldId: success.userId }, { where: { id: good.id } });
         await User.update(
           { money: sequelize.literal(`money - ${success.bid}`) },
