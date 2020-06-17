@@ -156,6 +156,10 @@ router.post('/good/:id/bid', isLoggedIn, async (req, res, next) => {
       include: { model: Auction },
       order: [[{ model: Auction }, 'bid', 'DESC']],
     });
+    const user = await User.findOne({ where: { id: req.user.id } });
+    if (good.ownerId === req.user.id) {
+      return res.status(403).send('경매 등록자는 입찰 할 수 없습니다.');
+    }
     if (good.price > bid) {
       // 시작 가격보다 낮게 입찰하면
       return res.status(403).send('시작 가격보다 높게 입찰해야 합니다.');
@@ -168,8 +172,8 @@ router.post('/good/:id/bid', isLoggedIn, async (req, res, next) => {
     if (good.auctions[0] && good.auctions[0].bid >= bid) {
       return res.status(403).send('이전 입찰가보다 높아야 합니다');
     }
-    if (good.ownerId === req.user.id) {
-      return res.status(403).send('경매 등록자는 입찰 할 수 없습니다.');
+    if (user.money < bid) {
+      return res.status(403).send('돈이 부족합니다. "충전하기"를 통해 돈을 충전해주세요.');
     }
     const result = await Auction.create({
       bid,
